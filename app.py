@@ -26,7 +26,7 @@ CORS(app, resources={r'/*': {'origins': '*'}})
 def STT():
     file = request.files.get('audio')
     username = 'id121'
-    file_dir = str(time.strftime("C:/audio/"+ username +"/%Y/%m/%d/"))
+    file_dir = str(time.strftime("C:/audio/"+ username +"/%Y/%m/%d/"))  #여기 경로 변경 필요
     pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
     file_name = datetime.strftime(datetime.now(), (username+".%Y-%m-%dT%H-%M-%S.%f"))[:-3] + ".wav"
     file.save(os.path.join(file_dir, file_name))
@@ -39,24 +39,6 @@ def STT():
     response.headers['result'] = result
 
     return response
-
-    # 'paragraph': paragraph,
-    #     'filter_paragraph' : filter_paragraph,
-    #     'sensitivity' : saltlux_api('11987300804', '0', paragraph),
-    #     'emotion' : saltlux_api('11987300804', '1', paragraph),
-    #     'keyword' : saltlux_api('00116013830', '1', filter_paragraph)
-
-# def csv_file_download_with_stream():
-#     output_stream = StringIO()## dataframe을 저장할 IO stream 
-#     temp_audio = 
-#     temp_audio.to_csv(output_stream)## 그 결과를 앞서 만든 IO stream에 저장해줍니다. 
-#     response = Response(
-#         output_stream.getvalue(), 
-#         mimetype='audio/mp3', 
-#         content_type='application/octet-stream',
-#     )
-#     response.headers["Content-Disposition"] = "attachment; filename=after_sound.mp3"
-#     return response 
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port=os.getenv('FLASK_RUN_PORT'),debug=os.getenv('FLASK_DEBUG'))

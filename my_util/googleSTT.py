@@ -1,9 +1,6 @@
 from google.cloud import speech
 from pydub import AudioSegment
-AudioSegment.converter = r"/home/ubuntu/projects/Babble-Flask/ffmpeg/bin/ffmpeg.exe"
-# AudioSegment.converter = "..\\ffmpeg\\bin\\ffmpeg.exe"
-# AudioSegment.ffmpeg = "..\\ffmpeg\\bin\\ffmpeg.exe"
-# AudioSegment.ffprobe = "..\\ffmpeg\\bin\\ffprobe.exe"
+AudioSegment.converter = r"C:\ITStudy\STT\ffmpeg\bin\ffmpeg.exe"
 from datetime import datetime
 from pathlib import Path
 
@@ -35,9 +32,6 @@ def sample_recognize(file_dir, file_name):
         "use_enhanced": True
     }
 
-    # with io.open(file_dir + file_name, "rb") as f:
-    #     audio_file = f.read()
-    # audio = {"content": audio_file}
     audio = {"content": open_audio(file_dir, file_name)}
     response = client.recognize(config=config, audio=audio)
 
@@ -74,7 +68,7 @@ def sample_recognize(file_dir, file_name):
 def create_beep(duration):
     sps = 48000
     freq_hz = 1000.0
-    vol = 0.8
+    vol = 0.9
 
     esm = np.arange(duration / 1020 * sps)
     wf = np.sin(2 * np.pi * esm * freq_hz / sps)
@@ -125,18 +119,12 @@ def total_api(file_dir, file_name):
     swear_timeline, paragraph, filter_paragraph = sample_recognize(file_dir, file_name)
     sound = AudioSegment.from_wav(file_dir + file_name)
     beep = create_beep(duration=1030)
-    print('swear_timeline', swear_timeline)
   
     if swear_timeline:
         for i in range(len(swear_timeline)):
             beep = create_beep(duration=swear_timeline[i][1] - swear_timeline[i][0])
             sound = sound.overlay(beep, position=swear_timeline[i][0], gain_during_overlay=-20)
-    #     after_sound = sound.export(file_dir + file_name[:-4] + '.mp3', format='mp3')
-    # else: after_sound = sound.export(file_dir + file_name[:-4] + '.mp3', format='mp3')
     sound.export(file_dir + file_name[:-4] + '.mp3', format='mp3')
-
-    # before_sound = open_audio(file_dir, file_name)
-    # after_sound = open_audio(file_dir, file_name[:-4] + '.mp3')
 
     collection = {
         'paragraph': paragraph,
@@ -145,9 +133,6 @@ def total_api(file_dir, file_name):
         'emotion' : saltlux_api('11987300804', '1', paragraph),
         'keyword' : saltlux_api('00116013830', '1', filter_paragraph)
     }
-    print(type(paragraph))
     result = json.dumps(collection, ensure_ascii=False).encode('utf-8')
-    # result = json.dumps(collection, ensure_ascii=False).decode('cp949').encode('utf-8')
-
 
     return result
