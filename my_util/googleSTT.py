@@ -1,6 +1,6 @@
 from google.cloud import speech
 from pydub import AudioSegment
-AudioSegment.converter = r"C:\ITStudy\STT\ffmpeg\bin\ffmpeg.exe"
+AudioSegment.converter = r"..\ffmpeg\bin\ffmpeg.exe"
 from datetime import datetime
 from pathlib import Path
 
