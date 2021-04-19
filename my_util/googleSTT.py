@@ -1,6 +1,9 @@
 from google.cloud import speech
 from pydub import AudioSegment
-AudioSegment.converter = r"..\ffmpeg\bin\ffmpeg.exe"
+AudioSegment.converter = r"/home/ubuntu/projects/Babble-Flask/ffmpeg/bin/ffmpeg.exe"
+# AudioSegment.converter = "..\\ffmpeg\\bin\\ffmpeg.exe"
+# AudioSegment.ffmpeg = "..\\ffmpeg\\bin\\ffmpeg.exe"
+# AudioSegment.ffprobe = "..\\ffmpeg\\bin\\ffprobe.exe"
 from datetime import datetime
 from pathlib import Path
 
