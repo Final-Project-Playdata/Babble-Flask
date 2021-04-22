@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, send_file, request, Response
+from flask import Flask, jsonify, send_file, request, Response, make_response
 from flask_cors import CORS
 from my_util.my_logger import my_logger
 from datetime import datetime
@@ -9,8 +9,8 @@ import time
 from io import StringIO
 import pathlib
 import requests
-from flask import send_file, make_response
 from flask_http_response import success, result, error
+
 
 # instantiate the app
 app = Flask(__name__)
@@ -33,15 +33,15 @@ def STT():
 
     file_dir = str(time.strftime(
         "C:/audiotest/" + file.filename + "/%Y/%m/%d/"))
-
+    
     pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
 
     file_name = datetime.strftime(
         datetime.now(), (file.filename + ".%Y-%m-%d-%H-%M-%S")) + ".wav"
 
     file.save(os.path.join(file_dir, file_name))
-
-    result = stt.total_api(file_dir, file_name)
+    user = file.filename
+    result = stt.total_api(file_dir, file_name, user)
 
     return result
 

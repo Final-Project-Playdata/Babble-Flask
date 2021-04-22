@@ -7,14 +7,16 @@ import time
 import base64
 import urllib3
 import numpy as np
-import speech_recognition as sr
 from flask import Flask, jsonify
 from pathlib import Path
 from datetime import datetime
 from google.cloud import speech
+from collections import Counter
+import my_util.BadWord as BadWord
 from pydub import AudioSegment
-AudioSegment.converter = r"C:\\ITstudy\\12.project\\Babble-Flask\\ffmpeg\\bin\\ffmpeg.exe"
-
+AudioSegment.converter = r"C:\\ITstudy\\STT\\ffmpeg\\bin\\ffmpeg.exe"
+from elasticsearch import Elasticsearch, helpers
+# python -m pip install elasticsearch[async]
 
 def open_audio(file_dir, file_name):
     with io.open(file_dir + file_name, "rb") as f:
@@ -37,12 +39,10 @@ def sample_recognize(file_dir, file_name):
     audio = {"content": open_audio(file_dir, file_name)}
     response = client.recognize(config=config, audio=audio)
 
-    profanityfilter = ['시발', '씨발', '시발놈아', '씨발놈아', '존나',
-                       '지랄', '미친새끼', '새끼가', '병신', '개새끼야', '지랄이야', '씹새끼야']
     timeline, swear_timeline, words, filter_words = [], [], [], []
     paragraph = ''
     filter_paragraph = ''
-
+    
     for result in response.results:
         alternative = result.alternatives[0]
         for word in alternative.words[1:]:
@@ -55,8 +55,13 @@ def sample_recognize(file_dir, file_name):
 
             words.append(word.word)
             paragraph = " ".join(words)
+        
+        profanityfilter = BadWord.load_badword_model()
+        for i in words:
+            data = BadWord.preprocessing(i)
+            result1 = profanityfilter.predict(data)
 
-            if word.word in profanityfilter:
+            if result1[0][0] >= 0.75:
                 filter_words.append('*')
                 filter_paragraph = " ".join(filter_words)
                 swear_timeline.append([
@@ -64,12 +69,17 @@ def sample_recognize(file_dir, file_name):
                         word.start_time.nanos * (10**-6)),
                     int(word.end_time.seconds * 1000 +
                         word.end_time.nanos * (10**-6))
-                ])
+                    ])
             else:
-                filter_words.append(word.word)
+                filter_words.append(i)
                 filter_paragraph = " ".join(filter_words)
 
-    return swear_timeline, paragraph, filter_paragraph
+        key = Counter(filter_paragraph.split(" ")).most_common(6)
+        keyword = []
+        for i in range(len(key)):
+            keyword.append(key[i][0])
+
+    return swear_timeline, paragraph, filter_paragraph, keyword
 
 
 def create_beep(duration):
@@ -110,10 +120,6 @@ def saltlux_api(service_id, type_number, text):
             return [result['label']]
         else:
             return [word[1] for word in result['Result']]
-    elif service_id == "00116013830":
-        params['argument']['question'] = text
-        result = saltlux_api_post(params)
-        return [word['keyword'] for word in result['return_object']['keylists']]
 
 
 def saltlux_api_post(params):
@@ -126,9 +132,9 @@ def saltlux_api_post(params):
 
 # -*-coding:utf-8-*-
 
-
-def total_api(file_dir, file_name):
-    swear_timeline, paragraph, filter_paragraph = sample_recognize(
+    
+def total_api(file_dir, file_name, user):
+    swear_timeline, paragraph, filter_paragraph, keyword = sample_recognize(
         file_dir, file_name)
     sound = AudioSegment.from_wav(file_dir + file_name)
     beep = create_beep(duration=1030)
@@ -150,8 +156,25 @@ def total_api(file_dir, file_name):
         'filter_paragraph': filter_paragraph,
         'sensitivity': saltlux_api('11987300804', '0', paragraph),
         'emotion': saltlux_api('11987300804', '1', paragraph),
-        'keyword': saltlux_api('00116013830', '1', filter_paragraph)
+        'keyword': keyword
     }
+
+    es_collection = {
+        'user' : user,
+        'name': file_name[:-4] + '.mp3',
+        'paragraph': paragraph,
+        'filter_paragraph': filter_paragraph,
+        'sensitivity': saltlux_api('11987300804', '0', paragraph),
+        'emotion': saltlux_api('11987300804', '1', paragraph),
+        'keyword': keyword
+    }
+    insertData(es_collection)
     result = json.dumps(collection, ensure_ascii=False).encode('utf-8')
 
     return result
+
+def insertData(doc):
+    es = Elasticsearch('http://127.0.0.1:9200')
+    index = "babble"
+    doc = doc
+    es.index(index=index, doc_type="_doc", body=doc, request_timeout=30)
