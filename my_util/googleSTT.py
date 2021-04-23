@@ -14,7 +14,7 @@ from google.cloud import speech
 from collections import Counter
 import my_util.BadWord as BadWord
 from pydub import AudioSegment
-AudioSegment.converter = r"C:\\ITstudy\\STT\\ffmpeg\\bin\\ffmpeg.exe"
+AudioSegment.converter = r"C:\\ITstudy\\12.project\\Babble-Flask\\ffmpeg\\bin\\ffmpeg.exe"
 from elasticsearch import Elasticsearch, helpers
 # python -m pip install elasticsearch[async]
 
@@ -149,7 +149,10 @@ def total_api(file_dir, file_name, user):
     audio_name = file_dir + file_name[:-4] + '.mp3'
     sound.export(audio_name, format='mp3')
 
-    print(audio_name)
+    for k in keyword:
+        if k == '*':
+            keyword.remove(k)
+
     collection = {
         'name': file_name[:-4] + '.mp3',
         'paragraph': paragraph,
