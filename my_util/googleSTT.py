@@ -14,9 +14,8 @@ from google.cloud import speech
 from collections import Counter
 import my_util.BadWord as BadWord
 from pydub import AudioSegment
-AudioSegment.converter = r"C:\\ITstudy\\12.project\\Babble-Flask\\ffmpeg\\bin\\ffmpeg.exe"
+AudioSegment.converter = r"C:\\MyGit\\Babble-Flask\\ffmpeg\\bin\\ffmpeg.exe"
 from elasticsearch import Elasticsearch, helpers
-# python -m pip install elasticsearch[async]
 
 def open_audio(file_dir, file_name):
     with io.open(file_dir + file_name, "rb") as f:
@@ -42,7 +41,8 @@ def sample_recognize(file_dir, file_name):
     timeline, swear_timeline, words, filter_words = [], [], [], []
     paragraph = ''
     filter_paragraph = ''
-    
+    profanityfilter = BadWord.load_badword_model()
+
     for result in response.results:
         alternative = result.alternatives[0]
         for word in alternative.words[1:]:
@@ -56,24 +56,17 @@ def sample_recognize(file_dir, file_name):
             words.append(word.word)
             paragraph = " ".join(words)
         
-        profanityfilter = BadWord.load_badword_model()
-        for i in words:
-            data = BadWord.preprocessing(i)
+        for i, v in enumerate(words):
+            data = BadWord.preprocessing(v)
             result1 = profanityfilter.predict(data)
-
-            if result1[0][0] >= 0.75:
+            if result1[0][0] >= 0.74:
+                swear_timeline.append(timeline[i])   
                 filter_words.append('*')
                 filter_paragraph = " ".join(filter_words)
-                swear_timeline.append([
-                    int(word.start_time.seconds * 1000 +
-                        word.start_time.nanos * (10**-6)),
-                    int(word.end_time.seconds * 1000 +
-                        word.end_time.nanos * (10**-6))
-                    ])
             else:
-                filter_words.append(i)
+                filter_words.append(v)
                 filter_paragraph = " ".join(filter_words)
-
+                
         key = Counter(filter_paragraph.split(" ")).most_common(6)
         keyword = []
         for i in range(len(key)):
