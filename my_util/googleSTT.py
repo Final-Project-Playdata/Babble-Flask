@@ -14,7 +14,7 @@ from google.cloud import speech
 from collections import Counter
 import my_util.BadWord as BadWord
 from pydub import AudioSegment
-AudioSegment.converter = r"C:\\MyGit\\Babble-Flask\\ffmpeg\\bin\\ffmpeg.exe"
+AudioSegment.converter = r"C:\\ITstudy\\12.project\\Babble-Flask\\ffmpeg\\bin\\ffmpeg.exe"
 from elasticsearch import Elasticsearch, helpers
 
 def open_audio(file_dir, file_name):
