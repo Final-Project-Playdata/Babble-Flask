@@ -1,3 +1,4 @@
+from elasticsearch import Elasticsearch, helpers
 import requests
 import json
 import os
@@ -14,8 +15,9 @@ from google.cloud import speech
 from collections import Counter
 import my_util.BadWord as BadWord
 from pydub import AudioSegment
+from pydub.silence import split_on_silence
 AudioSegment.converter = r"C:\\ITstudy\\12.project\\Babble-Flask\\ffmpeg\\bin\\ffmpeg.exe"
-from elasticsearch import Elasticsearch, helpers
+
 
 def open_audio(file_dir, file_name):
     with io.open(file_dir + file_name, "rb") as f:
@@ -45,6 +47,9 @@ def sample_recognize(file_dir, file_name):
 
     for result in response.results:
         alternative = result.alternatives[0]
+        timeline.append(
+            [0, int(alternative.words[0].end_time.seconds * 1000 + 500)])
+        words.append(alternative.words[0].word)
         for word in alternative.words[1:]:
             timeline.append([
                 int(word.start_time.seconds * 1000 +
@@ -54,19 +59,19 @@ def sample_recognize(file_dir, file_name):
             ])
 
             words.append(word.word)
-            paragraph = " ".join(words)
-        
+
+        paragraph = " ".join(words)
         for i, v in enumerate(words):
             data = BadWord.preprocessing(v)
             result1 = profanityfilter.predict(data)
-            if result1[0][0] >= 0.74:
-                swear_timeline.append(timeline[i])   
+            if result1[0][0] >= 0.85:
+                swear_timeline.append(timeline[i])
                 filter_words.append('*')
                 filter_paragraph = " ".join(filter_words)
             else:
                 filter_words.append(v)
                 filter_paragraph = " ".join(filter_words)
-                
+
         key = Counter(filter_paragraph.split(" ")).most_common(6)
         keyword = []
         for i in range(len(key)):
@@ -125,7 +130,7 @@ def saltlux_api_post(params):
 
 # -*-coding:utf-8-*-
 
-    
+
 def total_api(file_dir, file_name, user):
     swear_timeline, paragraph, filter_paragraph, keyword = sample_recognize(
         file_dir, file_name)
@@ -134,10 +139,21 @@ def total_api(file_dir, file_name, user):
 
     if swear_timeline:
         for i in range(len(swear_timeline)):
-            beep = create_beep(
-                duration=swear_timeline[i][1] - swear_timeline[i][0])
-            sound = sound.overlay(
-                beep, position=swear_timeline[i][0], gain_during_overlay=-20)
+            if i == 0:
+                silence = AudioSegment.silent(
+                    duration=swear_timeline[i][1] + 250)
+                sound = sound[:swear_timeline[i][0]] + \
+                    silence + sound[swear_timeline[i][1] + 250:]
+            else:
+                silence = AudioSegment.silent(
+                    duration=swear_timeline[i][1] - swear_timeline[i][0] + 500)
+                # beep = create_beep(
+                #     duration=swear_timeline[i][1] - swear_timeline[i][0])
+                # sound[swear_timeline[i][0]:swear_timeline[i][1]] = silence
+                # sound = sound.overlay(
+                #     silence, position=swear_timeline[i][0], gain_during_overlay=-20)
+                sound = sound[:swear_timeline[i][0] - 250] + \
+                    silence + sound[swear_timeline[i][1] + 250:]
 
     audio_name = file_dir + file_name[:-4] + '.mp3'
     sound.export(audio_name, format='mp3')
@@ -156,7 +172,7 @@ def total_api(file_dir, file_name, user):
     }
 
     es_collection = {
-        'user' : user,
+        'user': user,
         'name': file_name[:-4] + '.mp3',
         'paragraph': paragraph,
         'filter_paragraph': filter_paragraph,
@@ -168,6 +184,7 @@ def total_api(file_dir, file_name, user):
     result = json.dumps(collection, ensure_ascii=False).encode('utf-8')
 
     return result
+
 
 def insertData(doc):
     es = Elasticsearch('http://127.0.0.1:9200')
